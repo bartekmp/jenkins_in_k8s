@@ -1,0 +1,43 @@
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+# Create a storage class for manual provisioning of persistent volumes
+metadata:
+  name: manual
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+
+---
+apiVersion: v1
+kind: PersistentVolume
+# Create a persistent volume for storing Jenkins data permanently
+metadata:
+  name: jenkins-pv-volume
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  claimRef:
+    name: jenkins-pv-claim
+    namespace: devops
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /var/jenkins-pv
+  persistentVolumeReclaimPolicy: Retain
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+# Create a persistent volume claim for Jenkins to request storage
+metadata:
+  name: jenkins-pv-claim
+  namespace: devops
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi

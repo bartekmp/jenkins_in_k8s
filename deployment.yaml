@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jenkins
+  namespace: devops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jenkins-server
+  template:
+    metadata:
+      labels:
+        app: jenkins-server
+    spec:
+      # The pod will be unprivileged and run as a non-root user (1001).
+      securityContext:
+        fsGroup: 1001
+        runAsGroup: 1001
+        runAsUser: 1001
+      serviceAccountName: jenkins-admin
+      # For troubleshooting, uncomment the initContainer section to change the ownership 
+      # of /var/jenkins_home inside the pod before the main Jenkins container starts.
+      # This is useful if you are using a hostPath volume and need to ensure the correct permissions.
+      # initContainers:
+      #   - name: init
+      #     image: busybox
+      #     command: 
+      #       - 'sh'
+      #       - '-c'
+      #       - |
+      #         echo "Init container started"
+      #         echo "Perms for jenkins_home: $(ls -ald /var/jenkins_home)"
+      #         echo "Changing ownership of /var/jenkins_home to UID 1001"
+      #         chown -R 1001:1001 /var/jenkins_home
+      #         echo "Perms for jenkins_home after chown: $(ls -ald /var/jenkins_home)"
+      #         echo "Init container finished"
+      #     volumeMounts:
+      #       - name: jenkins-data
+      #         mountPath: /var/jenkins_home
+      #     securityContext:
+      #       runAsUser: 0 
+      containers:
+        - name: jenkins
+          # Use the latest Jenkins image. You can specify a specific version if needed.
+          image: jenkins/jenkins:latest
+          # Set the resource limits and requests for the Jenkins container.
+          resources:
+            limits:
+              memory: "4Gi"
+              cpu: "1000m"
+            requests:
+              memory: "2Gi"
+              cpu: "500m"
+          # Mark the exposed ports for the Jenkins container.
+          ports:
+            - name: httpport
+              containerPort: 8080
+            - name: jnlpport
+              containerPort: 50000
+          # The health checks are configured to check the Jenkins login page responses with GET queries.
+          livenessProbe:
+            httpGet:
+              path: "/login"
+              port: 8080
+            initialDelaySeconds: 90
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: "/login"
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # Mount the volume from volume.yaml under /var/jenkins_home to persist Jenkins data on-host.
+          volumeMounts:
+            - name: jenkins-data
+              mountPath: /var/jenkins_home
+          securityContext:
+            runAsUser: 1001
+            runAsGroup: 1001
+      # Claim the persistent volume created in volume.yaml.
+      volumes:
+        - name: jenkins-data
+          persistentVolumeClaim:
+            claimName: jenkins-pv-claim
+          

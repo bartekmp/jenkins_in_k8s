@@ -1,0 +1,35 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+# Create a cluster role for Jenkins with admin privileges
+# This role allows Jenkins to perform any action on any resource in the cluster.
+metadata:
+  name: jenkins-admin
+rules:
+  - apiGroups: [""]
+    resources: ["*"]
+    verbs: ["*"]
+
+---
+apiVersion: v1
+kind: ServiceAccount
+# Create a service account for Jenkins for k8s API authentication and access
+metadata:
+  name: jenkins-admin
+  namespace: devops
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+# Bind the Jenkins service account to the cluster role
+# This allows the Jenkins service account to use the permissions defined in the cluster role.
+metadata:
+  name: jenkins-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: jenkins-admin
+subjects:
+- kind: ServiceAccount
+  name: jenkins-admin
+  namespace: devops
